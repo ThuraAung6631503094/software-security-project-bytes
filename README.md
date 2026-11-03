@@ -10,9 +10,9 @@ attacker, fix it like a defender, and harden its build and release pipeline.
 
 | Role | Member | Area |
 |---|---|---|
-| Person 1 | _name + student ID_ | Repo lead · authentication, sessions & crypto |
-| Person 2 | _name + student ID_ | Access control & input handling |
-| Person 3 | _name + student ID_ | Platform, CI & supply chain |
+| Person 1 | Thura Aung — 6631503094 | Repo lead · authentication, sessions & crypto |
+| Person 2 | Pyae Shunn Le Maung — 6631503084 | Access control & input handling |
+| Person 3 | Nang Yu Yu Khay — 6631503078 | Platform, CI & supply chain |
 
 Who does what: [docs/TASKS.md](docs/TASKS.md) · How we work: [CONTRIBUTING.md](CONTRIBUTING.md)
 
@@ -46,19 +46,20 @@ git diff vulnerable-baseline main -- starter-app/
 ## Run it locally
 
 All three members must use the **same** `TEAM_ID` so every screenshot carries the same marker.
+Our team uses `TEAM_BYTES`.
 
 PowerShell:
 
 ```powershell
 cd starter-app
-$env:TEAM_ID="<team-id>"; docker compose up --build
+$env:TEAM_ID="TEAM_BYTES"; docker compose up --build
 ```
 
 Git Bash:
 
 ```bash
 cd starter-app
-export TEAM_ID=<team-id> && docker compose up --build
+export TEAM_ID=TEAM_BYTES && docker compose up --build
 ```
 
 Open <http://localhost:8080>. Seeded sandbox accounts: `alice` / `alicepw`, `admin` / `admin123`.
