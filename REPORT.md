@@ -8,7 +8,7 @@
 | Field | Value |
 |---|---|
 | Team name | Bytes |
-| Members (name + ID) | |
+| Members (name + ID) | Thura Aung (6631503094) · Pyae Shunn Le Maung (6631503084) · Nang Yu Yu Khay (6631503078) |
 | Target application | NoteVault (course starter app) |
 | Repository URL | https://github.com/ThuraAung6631503094/software-security-project-bytes |
 | Baseline | tag `vulnerable-baseline` |
@@ -19,7 +19,8 @@
 
 | Tool | Who | How it was used |
 |---|---|---|
-| | | |
+| Claude Code (Anthropic) | Thura Aung | Set up the repository structure, task split and report outline; drafted evidence-log templates and reproduction/fix guidance. The team ran all testing, captured all evidence, and reviewed every change. |
+| | | <!-- Person 2 / Person 3: add your own tools and usage, or "None". --> |
 
 ---
 
