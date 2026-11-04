@@ -1,0 +1,26 @@
+Finding:   SEC-01 — committed password hashes (REMEDIATION VERIFICATION)
+Category:  Secrets management / supply chain  (Person 3)
+Verified:  2026-11-05
+Fix branch: fix/person3-platform
+
+What changed:
+  Deleted starter-app/project_hashes.txt from the repository. The hardened Dockerfile +
+  .dockerignore (CFG-02) ensure it is no longer copied into the image.
+
+Re-test (authorized local sandbox):
+  1. File gone from the working tree / repo:
+       `git status` shows it deleted; it is absent from the tree.
+  2. Not in the rebuilt image:
+       docker compose exec notevault ls -la /app
+       Observed: project_hashes.txt is absent from /app.
+
+Residual note:
+  The file still exists in earlier git history (the baseline). Because the digests are MD5 of the
+  seed passwords, the correct remediation also ROTATES those seed credentials — handled by the
+  AUTH-03 fix (adaptive password hashing and new seed passwords). History rewriting
+  (git filter-repo) can be applied if the course requires full removal from history.
+
+Result: RESOLVED — credential file removed from repo and image; seed creds rotated via AUTH-03.
+
+Screenshot(s):
+  fixed.png — the rebuilt container's /app listing with no project_hashes.txt

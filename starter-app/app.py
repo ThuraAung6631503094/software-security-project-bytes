@@ -13,7 +13,6 @@ import hashlib
 import hmac
 import os
 import sqlite3
-import subprocess
 
 import jwt  # PyJWT
 from flask import Flask, request, jsonify, render_template_string, redirect, make_response
@@ -109,9 +108,9 @@ def home():
 
 @app.route("/register", methods=["POST"])
 def register():
-    username = request.form.get("username") or (request.json or {}).get("username")
-    password = request.form.get("password") or (request.json or {}).get("password")
-    role = request.form.get("role") or (request.json or {}).get("role") or "user"
+    username = request.form.get("username") or (request.get_json(silent=True) or {}).get("username")
+    password = request.form.get("password") or (request.get_json(silent=True) or {}).get("password")
+    role = request.form.get("role") or (request.get_json(silent=True) or {}).get("role") or "user"
     con = db()
     con.execute("INSERT INTO users (username, password, role) VALUES (?,?,?)",
                 (username, hashlib.md5(password.encode()).hexdigest(), role))
@@ -122,8 +121,8 @@ def register():
 
 @app.route("/login", methods=["POST"])
 def login():
-    username = request.form.get("username") or (request.json or {}).get("username")
-    password = request.form.get("password") or (request.json or {}).get("password")
+    username = request.form.get("username") or (request.get_json(silent=True) or {}).get("username")
+    password = request.form.get("password") or (request.get_json(silent=True) or {}).get("password")
     con = db()
     q = "SELECT * FROM users WHERE username = '%s' AND password = '%s'" % (
         username, hashlib.md5((password or "").encode()).hexdigest())
@@ -197,13 +196,31 @@ def admin():
 def export():
     if not current_user():
         return "auth required", 401
+    # INJ-04 fix: no shell. Accept only an allowlisted format; never run user input.
     fmt = request.args.get("fmt", "txt")
-    # convenience "export" feature
-    out = subprocess.run("echo exporting notes as " + fmt, shell=True,
-                         capture_output=True, text=True)
-    return "<pre>%s</pre>" % out.stdout
+    if fmt != "txt":
+        return "unsupported format", 400
+    return "<pre>exporting notes as txt</pre>"
+
+
+# CFG-01 fix: generic error responses so failures never leak internal detail.
+@app.errorhandler(404)
+def not_found(_):
+    return "not found", 404
+
+
+@app.errorhandler(500)
+def server_error(_):
+    return "internal server error", 500
 
 
 if __name__ == "__main__":
     seed()
-    app.run(host="0.0.0.0", port=8080, debug=True)
+    # CFG-01 fix: debug disabled; host/port from the environment. The app listens on all
+    # interfaces INSIDE the container, while host exposure is restricted to localhost by the
+    # docker-compose port mapping (127.0.0.1:8080:8080).
+    app.run(
+        host=os.environ.get("NOTEVAULT_HOST", "0.0.0.0"),
+        port=int(os.environ.get("NOTEVAULT_PORT", "8080")),
+        debug=False,
+    )

@@ -1,0 +1,25 @@
+Finding:   CFG-02 — insecure container image (REMEDIATION VERIFICATION)
+Category:  Configuration / container  (Person 3)
+Verified:  2026-11-05
+Fix branch: fix/person3-platform
+
+What changed:
+  starter-app/Dockerfile: slim base (to be digest-pinned); removed `ENV APP_SECRET`; copies only
+    requirements.txt and app.py (no more COPY . .); adds a non-root user and `USER 10001:10001`.
+  Added starter-app/.dockerignore so only app.py and requirements.txt can enter the image.
+
+Re-test (authorized local sandbox, after `docker compose up --build`):
+  1. Non-root:   docker compose exec notevault id
+       Before: uid=0(root)
+       After:  uid=10001(notevault) gid=10001(notevault)
+  2. No baked secret:  docker compose exec notevault printenv APP_SECRET
+       Before: notevault-dev-secret
+       After:  (empty / not set)
+  3. No stray files:   docker compose exec notevault ls -la /app
+       Before: project_hashes.txt present
+       After:  only app.py and requirements.txt; no project_hashes.txt
+
+Result: BLOCKED — container runs as non-root, no baked secret, minimal image contents.
+
+Screenshot(s):
+  fixed.png — terminal showing uid=10001, empty APP_SECRET, and /app without project_hashes.txt

@@ -1,0 +1,20 @@
+Finding:   SC-01 — dependencies (REMEDIATION VERIFICATION)
+Category:  Supply chain  (Person 3)
+Verified:  2026-11-05
+Fix branch: fix/person3-platform
+
+What changed:
+  starter-app/requirements.txt upgraded to maintained versions and trimmed:
+    Flask 2.0.1 -> 3.1.2, Werkzeug 2.0.1 -> 3.1.3, Jinja2 3.0.1 -> 3.1.6, PyJWT 1.7.1 -> 2.14.0
+    removed unused `requests` and `urllib3`.
+
+Re-test (authorized local sandbox):
+  Re-ran the same Trivy scan used for the exploit:
+    docker run --rm -v "${PWD}:/src" aquasec/trivy:latest fs --scanners vuln --severity HIGH,CRITICAL /src/requirements.txt
+  Before: 17 findings (16 HIGH, 1 CRITICAL)
+  After:  0 HIGH/CRITICAL findings
+
+Result: RESOLVED — no HIGH or CRITICAL dependency findings remain.
+
+Screenshot(s):
+  fixed.png — the Trivy scan of the upgraded requirements.txt showing 0 HIGH/CRITICAL
