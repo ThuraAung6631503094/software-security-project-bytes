@@ -24,10 +24,15 @@ disclosure, Denial of service, Elevation of privilege.
 | _TODO_ | | | | |
 
 ### Person 3 — platform, CI & supply chain
-<!-- Person 3: add rows for export/shell, container, dependencies, CI, releases (INJ-04, CFG-01/02, SC-01, SEC-01). -->
+
 | Element / data flow | Threat (STRIDE) | How it applies here | Finding(s) | Mitigation |
 |---|---|---|---|---|
-| _TODO_ | | | | |
+| Browser → `/export` → shell | **E**levation / **T**ampering | User-controlled `fmt` reaches `subprocess(..., shell=True)` → OS command execution | INJ-04 | Allowlist formats; no shell; argument-list exec |
+| Flask app runtime (process/host) | **I**nformation disclosure / **D**enial of service | `debug=True` leaks tracebacks and source; app bound 0.0.0.0 and published on all interfaces | CFG-01 | `debug=False`; bind localhost; error handlers |
+| Container image | **E**levation of privilege / **I**nformation disclosure | Runs as root; unpinned base; `COPY . .`; secret baked in `ENV` | CFG-02 | Non-root user; pin base by digest; `.dockerignore`; no baked secret |
+| Repository → image (dependencies) | **T**ampering (supply chain) | Outdated, vulnerable, and unused Python packages pulled into the image | SC-01 | Upgrade/trim deps; SCA gate in CI; SBOM |
+| Repository / image (secrets) | **I**nformation disclosure | Seed password hashes committed to git and shipped in the image | SEC-01 | Remove file; rotate seed creds; secret scanning in CI |
+| CI runner → released image/artifacts | **T**ampering / **R**epudiation | Without scanning/signing, a tampered build or dependency can ship unnoticed | CI, supply chain | SAST+SCA+secret gates failing on HIGH/CRITICAL; Cosign-signed artifact; pinned actions |
 
 ## Top-5 risk ranking (likelihood × impact)
 <!-- Person 1 assembles this once all rows are in. -->
