@@ -1,0 +1,102 @@
+name: Security CI
+
+# Runs SAST, dependency/secret/misconfig scanning, container scanning and SBOM generation.
+# The build is designed to FAIL on HIGH/CRITICAL findings so risky code cannot merge.
+# Against the vulnerable baseline this pipeline fails on purpose (that failing run is evidence).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  compile:
+    name: Python compile check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Byte-compile the app
+        run: python -m py_compile starter-app/app.py
+
+  sast:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    container: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Semgrep (fail on ERROR-level findings)
+        run: semgrep scan --config p/python --config p/owasp-top-ten --severity ERROR --error starter-app
+
+  deps_and_secrets:
+    name: SCA + secret + misconfig (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          skip-dirs: evidence,.git
+
+  secrets_history:
+    name: Secret scan of git history (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  container:
+    name: Container image scan (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t notevault:ci starter-app
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: image
+          image-ref: notevault:ci
+          scanners: vuln,misconfig
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+  sbom:
+    name: CycloneDX SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Generate SBOM
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install cyclonedx-bom
+          cyclonedx-py requirements starter-app/requirements.txt --output-format json --output-file sbom.json
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: notevault-sbom
+          path: sbom.json
+
+# Note: action versions use tags here for readability. For stronger supply-chain hygiene,
+# pin each action to a full commit SHA before final submission.
