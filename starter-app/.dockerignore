@@ -1,0 +1,5 @@
+# Only the application code and its dependency list belong in the image.
+# Everything else is excluded so nothing sensitive is copied in (CFG-02 / SEC-01).
+*
+!app.py
+!requirements.txt

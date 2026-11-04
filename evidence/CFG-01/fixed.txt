@@ -1,0 +1,21 @@
+Finding:   CFG-01 — debug mode + network exposure (REMEDIATION VERIFICATION)
+Category:  Configuration  (Person 3)
+Verified:  2026-11-05
+Fix branch: fix/person3-platform
+
+What changed:
+  starter-app/app.py: app.run(debug=False); host/port from env; added generic 404/500 error
+    handlers so failures leak no internal detail.
+  starter-app/docker-compose.yml: port published as 127.0.0.1:8080:8080 (host loopback only).
+
+Re-test (authorized local sandbox):
+  1. Triggered the same error (register with no password):
+       curl.exe -i -X POST http://localhost:8080/register -d "username=triggererror"
+     Before: HTTP 500 with the Werkzeug interactive debugger / full traceback
+     After:  generic HTTP 500 "internal server error" — no traceback, no debugger
+  2. Exposure: docker-compose now maps 127.0.0.1:8080:8080 (localhost only)
+
+Result: BLOCKED — no traceback/source leak on error; host exposure limited to localhost.
+
+Screenshot(s):
+  fixed.png — the error response showing a generic message (no traceback/debugger page)

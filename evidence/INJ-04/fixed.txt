@@ -1,0 +1,21 @@
+Finding:   INJ-04 — command injection in /export (REMEDIATION VERIFICATION)
+Category:  Platform / input handling  (Person 3)
+Verified:  2026-11-05
+Fix branch: fix/person3-platform
+
+What changed:
+  starter-app/app.py export(): removed subprocess/shell entirely. The route now accepts only the
+  allowlisted "txt" format and returns a static string; the `subprocess` import was removed.
+
+Re-test (authorized local sandbox):
+  (logged in as alice)
+  Normal:  http://localhost:8080/export?fmt=txt
+    Observed: "exporting notes as txt"
+  Attack:  http://localhost:8080/export?fmt=txt;id
+    Before: the output included the injected `id` command result
+    After:  HTTP 400 "unsupported format"; no command runs
+
+Result: BLOCKED — the injected command no longer executes; non-txt input is rejected.
+
+Screenshot(s):
+  fixed.png — /export?fmt=txt;id returning "unsupported format" (400), no command output
