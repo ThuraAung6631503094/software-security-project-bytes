@@ -39,7 +39,12 @@ PAGE = """
   {% if is_admin %}· <a href="/admin">admin</a>{% endif %}</p>
 <form method=post action="/notes"><input name=title placeholder=title>
   <input name=body placeholder=note><button>Add note</button></form>
-<h3>Your notes</h3>{{ notes_html|safe }}
+<h3>Your notes</h3>
+<ul>
+{% for note in notes %}
+  <li>#{{ note["id"] }} <b>{{ note["title"] }}</b>: {{ note["body"] }}</li>
+{% endfor %}
+</ul>
 <form action="/search"><input name=q placeholder="search notes"><button>Search</button></form>
 {% else %}
 <form method=post action="/login">user <input name=username> pass <input name=password type=password>
@@ -60,7 +65,7 @@ def seed():
     con = db()
     con.executescript(
         "DROP TABLE IF EXISTS users; DROP TABLE IF EXISTS notes;"
-        "CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT, password TEXT, role TEXT);"
+        "CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT UNIQUE, password TEXT, role TEXT);"
         "CREATE TABLE notes (id INTEGER PRIMARY KEY, owner TEXT, title TEXT, body TEXT);"
     )
     con.executemany("INSERT INTO users (username, password, role) VALUES (?,?,?)",
@@ -95,27 +100,34 @@ def role_of(username):
 @app.route("/")
 def home():
     user = current_user()
-    notes_html = ""
+    rows = []
     if user:
         con = db()
         rows = con.execute("SELECT id,title,body FROM notes WHERE owner = ?", (user,)).fetchall()
         con.close()
-        notes_html = "".join(
-            "<li>#%d <b>%s</b>: %s</li>" % (r["id"], r["title"], r["body"]) for r in rows)
+    # INJ-02 fix: pass notes as structured data; Jinja auto-escaping neutralises stored HTML/JS.
     return render_template_string(PAGE, user=user, is_admin=(user and role_of(user) == "admin"),
-                                  notes_html=notes_html)
+                                  notes=rows)
 
 
 @app.route("/register", methods=["POST"])
 def register():
     username = request.form.get("username") or (request.get_json(silent=True) or {}).get("username")
     password = request.form.get("password") or (request.get_json(silent=True) or {}).get("password")
-    role = request.form.get("role") or (request.get_json(silent=True) or {}).get("role") or "user"
+    if not username or not password:
+        return "username and password required", 400
+    # AC-01 fix: the role is set by the server, never taken from the request.
     con = db()
-    con.execute("INSERT INTO users (username, password, role) VALUES (?,?,?)",
-                (username, hashlib.md5(password.encode()).hexdigest(), role))
-    con.commit()
-    con.close()
+    try:
+        con.execute("INSERT INTO users (username, password, role) VALUES (?,?,?)",
+                    (username, hashlib.md5(password.encode()).hexdigest(), "user"))
+        con.commit()
+    except sqlite3.IntegrityError:
+        # AC-02 fix: usernames are unique; a duplicate is rejected, not silently created.
+        con.rollback()
+        return "username already exists", 409
+    finally:
+        con.close()
     return redirect("/")
 
 
@@ -159,10 +171,13 @@ def add_note():
 
 @app.route("/api/notes/<int:nid>")
 def api_note(nid):
-    if not current_user():
+    user = current_user()
+    if not user:
         return jsonify(error="auth required"), 401
+    # AC-03 fix: constrain by note ID AND the authenticated owner.
     con = db()
-    r = con.execute("SELECT id,owner,title,body FROM notes WHERE id = ?", (nid,)).fetchone()
+    r = con.execute("SELECT id,owner,title,body FROM notes WHERE id = ? AND owner = ?",
+                    (nid, user)).fetchone()
     con.close()
     return (jsonify(dict(r)) if r else (jsonify(error="not found"), 404))
 
@@ -173,12 +188,20 @@ def search():
     if not user:
         return "auth required", 401
     term = request.args.get("q", "")
+    # INJ-01 fix: parameterized query (owner and term are data, not SQL).
     con = db()
-    q = "SELECT id,title,body FROM notes WHERE owner='%s' AND body LIKE '%%%s%%'" % (user, term)
-    rows = con.execute(q).fetchall()
+    rows = con.execute(
+        "SELECT id,title,body FROM notes WHERE owner = ? AND body LIKE ?",
+        (user, f"%{term}%"),
+    ).fetchall()
     con.close()
-    return render_template_string("<a href=/>back</a><ul>" +
-        "".join("<li>%s: %s</li>" % (r["title"], r["body"]) for r in rows) + "</ul>")
+    # INJ-03 fix: fixed template; note content is passed as data and auto-escaped (no SSTI/XSS).
+    return render_template_string(
+        """<a href="/">back</a><ul>
+        {% for note in notes %}<li>{{ note["title"] }}: {{ note["body"] }}</li>{% endfor %}
+        </ul>""",
+        notes=rows,
+    )
 
 
 @app.route("/admin")

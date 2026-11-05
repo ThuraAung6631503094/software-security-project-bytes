@@ -1,0 +1,19 @@
+Finding:   INJ-02 — stored XSS in note rendering (REMEDIATION VERIFICATION)
+Category:  Input handling  (Person 2)
+Verified:  2026-11-05   [adjust / verify against your screenshot]
+Fix branch: fix/person2-access
+
+What changed:
+  starter-app/app.py: the home page PAGE template now loops over notes with Jinja auto-escaping
+  ({{ note["title"] }} / {{ note["body"] }}); the string-built notes_html and |safe were removed.
+
+Re-test (authorized local sandbox, after rebuild):
+  Steps:  log in as alice; add a note with body  <img src=x onerror=alert(document.domain)>
+          then reload http://localhost:8080/
+  Before: the payload executed (an alert fired)
+  After:  the payload is shown as inert text; no alert fires (view-source shows it HTML-escaped)
+
+Result: BLOCKED — stored content is escaped on render; no script executes.
+
+Screenshot(s):
+  fixed.png — the home page showing the payload as literal text (no alert dialog)
