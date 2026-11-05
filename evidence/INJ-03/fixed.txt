@@ -1,0 +1,20 @@
+Finding:   INJ-03 — server-side template injection in search (REMEDIATION VERIFICATION)
+Category:  Input handling  (Person 2)
+Verified:  2026-11-05   [adjust / verify against your screenshot]
+Fix branch: fix/person2-access
+
+What changed:
+  starter-app/app.py search(): the result is rendered from a FIXED template string with the note
+  rows passed as data ({{ note["body"] }}). Note content is no longer concatenated into the
+  template, so stored Jinja expressions are not evaluated.
+
+Re-test (authorized local sandbox, after rebuild):
+  Steps:  log in as alice; add a note with body  {{7*7}}
+          then search for  7
+  Before: the result rendered 49 (server-side evaluation)
+  After:  the result shows the literal text {{7*7}}
+
+Result: BLOCKED — stored template expressions are not evaluated; output is escaped data.
+
+Screenshot(s):
+  fixed.png — the search result showing literal {{7*7}} (not 49)

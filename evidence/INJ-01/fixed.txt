@@ -1,0 +1,20 @@
+Finding:   INJ-01 — SQL injection in search (REMEDIATION VERIFICATION)
+Category:  Input handling  (Person 2)
+Verified:  2026-11-05   [adjust / verify against your screenshot]
+Fix branch: fix/person2-access
+
+What changed:
+  starter-app/app.py search(): parameterized query — owner and the search term are passed as
+  SQL parameters, not string-formatted.
+
+Re-test (authorized local sandbox, after rebuild):
+  Steps:  log in as alice / alicepw
+  Attack: search box ->  %' OR owner='admin' --
+  Before: admin-owned notes appeared in the results
+  After:  no admin notes; the payload is treated as a literal search term (no matches / only
+          alice's own matching notes)
+
+Result: BLOCKED — the search term cannot alter the query; owner scope is enforced.
+
+Screenshot(s):
+  fixed.png — the search results for the injection payload showing no admin notes

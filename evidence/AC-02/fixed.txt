@@ -1,0 +1,18 @@
+Finding:   AC-02 — account takeover via duplicate usernames (REMEDIATION VERIFICATION)
+Category:  Access control  (Person 2)
+Verified:  2026-11-05   [adjust / verify against your screenshot]
+Fix branch: fix/person2-access
+
+What changed:
+  starter-app/app.py seed(): users.username now has a UNIQUE constraint.
+  register(): a duplicate username raises sqlite3.IntegrityError and returns 409.
+
+Re-test (authorized local sandbox, after rebuild):
+  Attack: curl.exe -i -X POST http://localhost:8080/register -d "username=admin&password=mypass"
+  Before: registration succeeded, creating a second "admin" row (takeover)
+  After:  HTTP 409 "username already exists" — no duplicate row is created
+
+Result: BLOCKED — usernames are unique; a duplicate "admin"/"alice" cannot be registered.
+
+Screenshot(s):
+  fixed.png — the 409 "username already exists" response to the duplicate registration

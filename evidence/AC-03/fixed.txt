@@ -1,0 +1,19 @@
+Finding:   AC-03 — IDOR on /api/notes/<id> (REMEDIATION VERIFICATION)
+Category:  Access control  (Person 2)
+Verified:  2026-11-05   [adjust / verify against your screenshot]
+Fix branch: fix/person2-access
+
+What changed:
+  starter-app/app.py api_note(): the query constrains by note ID AND the authenticated owner.
+
+Re-test (authorized local sandbox, after rebuild):
+  Steps:  log in as alice / alicepw
+  Own:    http://localhost:8080/api/notes/1  -> alice's own note (still works)
+  Attack: http://localhost:8080/api/notes/2  (admin's note)
+  Before: 200 with admin's note
+  After:  404 not found — the note is not owned by alice
+
+Result: BLOCKED — a user can only read their own notes by ID.
+
+Screenshot(s):
+  fixed.png — /api/notes/2 returning 404 {"error":"not found"} while logged in as alice

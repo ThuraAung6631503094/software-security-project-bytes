@@ -1,0 +1,19 @@
+Finding:   AC-01 — client-chosen role at registration (REMEDIATION VERIFICATION)
+Category:  Access control  (Person 2)
+Verified:  2026-11-05   [adjust / verify against your screenshot]
+Fix branch: fix/person2-access
+
+What changed:
+  starter-app/app.py register(): the role is now set by the server to "user"; any client-supplied
+  role is ignored. Missing username/password returns 400.
+
+Re-test (authorized local sandbox, after `docker compose up --build`):
+  Attack: curl.exe -i -X POST http://localhost:8080/register -d "username=eviladmin2&password=x&role=admin"
+          then log in as eviladmin2 / x and open http://localhost:8080/admin
+  Before: /admin returned 200 (the account was admin)
+  After:  /admin returns 403 forbidden — the account is a normal user
+
+Result: BLOCKED — the submitted role is ignored; self-registration cannot gain admin.
+
+Screenshot(s):
+  fixed.png — /admin returning 403 for the account registered with role=admin
