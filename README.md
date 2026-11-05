@@ -46,20 +46,21 @@ git diff vulnerable-baseline main -- starter-app/
 ## Run it locally
 
 All three members must use the **same** `TEAM_ID` so every screenshot carries the same marker.
-Our team uses `TEAM_BYTES`.
+Our team uses `TEAM_BYTES`. `NOTEVAULT_SECRET` is required at runtime (AUTH-01) and must not be
+committed — set it to any local value before starting.
 
 PowerShell:
 
 ```powershell
 cd starter-app
-$env:TEAM_ID="TEAM_BYTES"; docker compose up --build
+$env:TEAM_ID="TEAM_BYTES"; $env:NOTEVAULT_SECRET="local-dev-secret"; docker compose up --build
 ```
 
 Git Bash:
 
 ```bash
 cd starter-app
-export TEAM_ID=TEAM_BYTES && docker compose up --build
+export TEAM_ID=TEAM_BYTES NOTEVAULT_SECRET=local-dev-secret && docker compose up --build
 ```
 
 Open <http://localhost:8080>. Seeded sandbox accounts: `alice` / `alicepw`, `admin` / `admin123`.

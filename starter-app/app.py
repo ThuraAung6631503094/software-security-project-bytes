@@ -9,6 +9,7 @@ We do NOT list the vulnerabilities here — finding them is the assignment.
 
 Run:  docker compose up   (then http://localhost:8080)
 """
+import datetime
 import hashlib
 import hmac
 import os
@@ -16,10 +17,27 @@ import sqlite3
 
 import jwt  # PyJWT
 from flask import Flask, request, jsonify, render_template_string, redirect, make_response
+from flask_wtf.csrf import CSRFProtect
+from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
 DB = "/tmp/notevault.db"
-SECRET = "notevault-dev-secret"  # used to sign session tokens
+# AUTH-01 fix: the signing secret is injected at runtime, never hard-coded.
+SECRET = os.environ.get("NOTEVAULT_SECRET")
+if not SECRET:
+    raise RuntimeError("NOTEVAULT_SECRET must be configured")
+
+# AUTH-04 / AUTH-05 fix: Flask-WTF CSRF protection + secure session-cookie attributes.
+app.config.update(
+    SECRET_KEY=SECRET,
+    SESSION_COOKIE_NAME="flask_session",
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=os.environ.get("SESSION_COOKIE_SECURE", "0") == "1",
+)
+csrf = CSRFProtect(app)
+# The JWT auth cookie is kept separate from Flask-WTF's own session cookie.
+AUTH_COOKIE = "notevault_session"
 
 # Anti-copying: every team's build is seeded with a marker derived from their own TEAM_ID, so
 # any evidence a team submits (SQLi dump, IDOR response, admin-panel screenshot) that shows the
@@ -37,7 +55,9 @@ PAGE = """
 <h1>NoteVault</h1>
 {% if user %}<p>Signed in as <b>{{ user }}</b> · <a href="/logout">logout</a>
   {% if is_admin %}· <a href="/admin">admin</a>{% endif %}</p>
-<form method=post action="/notes"><input name=title placeholder=title>
+<form method=post action="/notes">
+  <input type=hidden name=csrf_token value="{{ csrf_token() }}">
+  <input name=title placeholder=title>
   <input name=body placeholder=note><button>Add note</button></form>
 <h3>Your notes</h3>
 <ul>
@@ -47,9 +67,13 @@ PAGE = """
 </ul>
 <form action="/search"><input name=q placeholder="search notes"><button>Search</button></form>
 {% else %}
-<form method=post action="/login">user <input name=username> pass <input name=password type=password>
+<form method=post action="/login">
+  <input type=hidden name=csrf_token value="{{ csrf_token() }}">
+  user <input name=username> pass <input name=password type=password>
   <button>Login</button></form>
-<form method=post action="/register">new: <input name=username> <input name=password type=password>
+<form method=post action="/register">
+  <input type=hidden name=csrf_token value="{{ csrf_token() }}">
+  new: <input name=username> <input name=password type=password>
   <button>Register</button></form>
 {% endif %}
 """
@@ -69,8 +93,8 @@ def seed():
         "CREATE TABLE notes (id INTEGER PRIMARY KEY, owner TEXT, title TEXT, body TEXT);"
     )
     con.executemany("INSERT INTO users (username, password, role) VALUES (?,?,?)",
-                    [("alice", hashlib.md5(b"alicepw").hexdigest(), "user"),
-                     ("admin", hashlib.md5(b"admin123").hexdigest(), "admin")])
+                    [("alice", generate_password_hash("alicepw"), "user"),
+                     ("admin", generate_password_hash("admin123"), "admin")])
     con.executemany("INSERT INTO notes (owner, title, body) VALUES (?,?,?)",
                     [("alice", "groceries", "milk, eggs"),
                      ("admin", "infra", "prod db password is hunter2"),
@@ -80,13 +104,15 @@ def seed():
 
 
 def current_user():
-    tok = request.cookies.get("session", "")
+    # AUTH-01 fix: only HS256 is accepted ("none" removed); expiry is enforced by PyJWT.
+    tok = request.cookies.get(AUTH_COOKIE, "")
     if not tok:
         return None
     try:
-        data = jwt.decode(tok, SECRET, algorithms=["HS256", "none"])
-        return data.get("sub")
-    except Exception:
+        data = jwt.decode(tok, SECRET, algorithms=["HS256"])
+        username = data.get("sub")
+        return username if isinstance(username, str) else None
+    except jwt.InvalidTokenError:
         return None
 
 
@@ -120,7 +146,7 @@ def register():
     con = db()
     try:
         con.execute("INSERT INTO users (username, password, role) VALUES (?,?,?)",
-                    (username, hashlib.md5(password.encode()).hexdigest(), "user"))
+                    (username, generate_password_hash(password), "user"))
         con.commit()
     except sqlite3.IntegrityError:
         # AC-02 fix: usernames are unique; a duplicate is rejected, not silently created.
@@ -135,23 +161,33 @@ def register():
 def login():
     username = request.form.get("username") or (request.get_json(silent=True) or {}).get("username")
     password = request.form.get("password") or (request.get_json(silent=True) or {}).get("password")
+    # AUTH-02 fix: parameterized lookup by username; AUTH-03 fix: verify an adaptive password hash.
     con = db()
-    q = "SELECT * FROM users WHERE username = '%s' AND password = '%s'" % (
-        username, hashlib.md5((password or "").encode()).hexdigest())
-    row = con.execute(q).fetchone()
+    row = con.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
     con.close()
-    if not row:
+    if not row or not check_password_hash(row["password"], password or ""):
         return "login failed", 401
-    tok = jwt.encode({"sub": username}, SECRET, algorithm="HS256")
+    # AUTH-01 fix: HS256 token with an expiry claim.
+    tok = jwt.encode(
+        {"sub": username,
+         "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=8)},
+        SECRET, algorithm="HS256",
+    )
     resp = make_response(redirect("/"))
-    resp.set_cookie("session", tok)
+    # AUTH-04 fix: HttpOnly + SameSite always; Secure when served over HTTPS.
+    resp.set_cookie(
+        AUTH_COOKIE, tok,
+        httponly=True,
+        samesite="Lax",
+        secure=app.config["SESSION_COOKIE_SECURE"],
+    )
     return resp
 
 
 @app.route("/logout")
 def logout():
     resp = make_response(redirect("/"))
-    resp.delete_cookie("session")
+    resp.delete_cookie(AUTH_COOKIE)
     return resp
 
 
@@ -209,8 +245,9 @@ def admin():
     user = current_user()
     if not user or role_of(user) != "admin":
         return "forbidden", 403
+    # INFO-01 fix: never serialize the password column to clients.
     con = db()
-    rows = con.execute("SELECT id,username,password,role FROM users").fetchall()
+    rows = con.execute("SELECT id,username,role FROM users").fetchall()
     con.close()
     return jsonify([dict(r) for r in rows])
 

@@ -1,0 +1,22 @@
+Finding:   AUTH-01 — forgeable/never-expiring session token (REMEDIATION VERIFICATION)
+Category:  Authentication / Sessions / Crypto  (Person 1)
+Verified:  2026-11-05   [adjust / verify against your screenshot]
+Fix branch: fix/person1-auth-fixes
+
+What changed:
+  starter-app/app.py: SECRET read from env (NOTEVAULT_SECRET), not hard-coded; jwt.decode accepts
+    only ["HS256"] ("none" removed); tokens now carry an "exp" claim (8h) that PyJWT enforces.
+    The JWT is carried in a separate cookie (notevault_session) from Flask's session cookie.
+  docker-compose.yml injects NOTEVAULT_SECRET at runtime.
+
+Re-test (authorized local sandbox, after rebuild with NOTEVAULT_SECRET set):
+  Present the previously-forged admin token (signed with the OLD exposed secret):
+    curl.exe -i http://localhost:8080/admin --cookie "notevault_session=<old forged token>"
+  Before: 200 with administrator records
+  After:  403 forbidden — the signature no longer matches the runtime secret; the forged
+          identity is rejected
+
+Result: BLOCKED — a token signed with the old/known secret is rejected; tokens also expire.
+
+Screenshot(s):
+  fixed.png — /admin returning 403 when the old forged token is presented

@@ -1,0 +1,22 @@
+Finding:   AUTH-05 — missing CSRF protection (REMEDIATION VERIFICATION)
+Category:  Authentication / Sessions / Crypto  (Person 1)
+Verified:  2026-11-05   [adjust / verify against your screenshot]
+Fix branch: fix/person1-auth-fixes
+
+What changed:
+  starter-app/app.py: Flask-WTF CSRFProtect enabled; the login, register and add-note forms carry
+  a {{ csrf_token() }} field. State-changing POSTs without a valid token are rejected.
+
+Re-test (authorized local sandbox, after rebuild):
+  Log in as alice, then from the DevTools Console submit a POST with NO CSRF token:
+    fetch('/notes', {method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'title=csrf&body=test'}).then(r=>console.log('status', r.status))
+  Before: status 200; the note was created
+  After:  status 400 (CSRF token missing); the note is NOT created
+  (Normal note creation via the form still works, because the form includes the token.)
+
+Result: BLOCKED — POSTs without a valid CSRF token are rejected.
+
+Screenshot(s):
+  fixed.png — the Console showing status 400 for the tokenless POST (CSRF rejected)
