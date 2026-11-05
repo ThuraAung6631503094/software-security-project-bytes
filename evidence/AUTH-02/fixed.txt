@@ -1,0 +1,18 @@
+Finding:   AUTH-02 — SQL injection in login (REMEDIATION VERIFICATION)
+Category:  Authentication / Sessions / Crypto  (Person 1)
+Verified:  2026-11-05   [adjust / verify against your screenshot]
+Fix branch: fix/person1-auth-fixes
+
+What changed:
+  starter-app/app.py login(): parameterized lookup by username, then verify the password hash in
+  Python (no SQL string-building, no password in the query).
+
+Re-test (authorized local sandbox, after rebuild):
+  On the login form, username: ' OR 1=1 --     password: x     (the form carries a CSRF token)
+  Before: HTTP 302, a session cookie was set (auth bypass)
+  After:  HTTP 401 "login failed" — the input is data, not SQL
+
+Result: BLOCKED — the injection no longer authenticates; no session is issued.
+
+Screenshot(s):
+  fixed.png — "login failed" (401) after submitting the injection payload

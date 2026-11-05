@@ -1,0 +1,19 @@
+Finding:   AUTH-03 — unsalted MD5 password storage (REMEDIATION VERIFICATION)
+Category:  Authentication / Sessions / Crypto  (Person 1)
+Verified:  2026-11-05   [adjust / verify against your screenshot]
+Fix branch: fix/person1-auth-fixes
+
+What changed:
+  starter-app/app.py: seed() and register() store passwords with Werkzeug generate_password_hash
+  (adaptive, salted); login() verifies with check_password_hash. MD5 is gone from the auth paths.
+
+Re-test (authorized local sandbox, after rebuild):
+  1. Correct credentials still work:  log in as alice / alicepw  -> success
+  2. Wrong password is rejected:      log in as alice / wrongpw  -> 401 login failed
+  (The stored value is now a salted adaptive hash, e.g. "scrypt:..."/"pbkdf2:...", not a 32-char
+   MD5 digest; it is also no longer exposed by /admin — see INFO-01.)
+
+Result: RESOLVED — passwords use adaptive salted hashing; MD5 removed from storage and verify.
+
+Screenshot(s):
+  fixed.png — a successful alice login (app works with the new hashing); optionally the code diff

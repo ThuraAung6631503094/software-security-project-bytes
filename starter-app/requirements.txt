@@ -1,6 +1,7 @@
 # NoteVault dependencies — upgraded to maintained versions (SC-01).
 # Unused packages (requests, urllib3) were removed to shrink the attack surface.
 Flask==3.1.2
+Flask-WTF==1.2.2
 Werkzeug==3.1.3
 Jinja2==3.1.6
 PyJWT==2.14.0

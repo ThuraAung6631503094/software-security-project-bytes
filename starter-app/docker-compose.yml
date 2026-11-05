@@ -10,6 +10,9 @@ services:
       # flags used in the weekly labs. TEAM_SALT stays instructor-side in a real cohort.
       - TEAM_ID=${TEAM_ID:-unassigned}
       - TEAM_SALT=${TEAM_SALT:-notevault-anti-copy-dev-salt}
+      # AUTH-01: the signing secret is injected at runtime, never baked into the image.
+      - NOTEVAULT_SECRET=${NOTEVAULT_SECRET:?Set NOTEVAULT_SECRET before starting}
+      - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-0}
     # For quick iteration you can mount the source:
     # volumes:
     #   - ./:/app

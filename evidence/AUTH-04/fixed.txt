@@ -1,0 +1,20 @@
+Finding:   AUTH-04 — session cookie missing security attributes (REMEDIATION VERIFICATION)
+Category:  Authentication / Sessions / Crypto  (Person 1)
+Verified:  2026-11-05   [adjust / verify against your screenshot]
+Fix branch: fix/person1-auth-fixes
+
+What changed:
+  starter-app/app.py login(): the auth cookie is set with HttpOnly and SameSite=Lax always, and
+  Secure when SESSION_COOKIE_SECURE=1 (HTTPS). Flask's own session cookie is likewise hardened.
+
+Re-test (authorized local sandbox, after rebuild):
+  Log in as alice; inspect the Set-Cookie header (DevTools > Network > /login > Headers).
+  Before: Set-Cookie: session=...            (no attributes)
+  After:  Set-Cookie: notevault_session=...; HttpOnly; SameSite=Lax; Path=/
+  Note: Secure is absent over plain HTTP by design; it is added when SESSION_COOKIE_SECURE=1.
+
+Result: BLOCKED — the token cookie is HttpOnly and SameSite (Secure under HTTPS), not script-
+  readable and not sent cross-site.
+
+Screenshot(s):
+  fixed.png — DevTools showing the notevault_session Set-Cookie with HttpOnly and SameSite=Lax

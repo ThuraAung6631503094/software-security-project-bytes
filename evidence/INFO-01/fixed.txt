@@ -1,0 +1,18 @@
+Finding:   INFO-01 — /admin discloses password hashes (REMEDIATION VERIFICATION)
+Category:  Authentication / Sessions / Crypto  (Person 1)
+Verified:  2026-11-05   [adjust / verify against your screenshot]
+Fix branch: fix/person1-auth-fixes
+
+What changed:
+  starter-app/app.py admin(): the query selects only id, username, role; the password column is
+  never serialized to the client.
+
+Re-test (authorized local sandbox, after rebuild):
+  Log in as admin / admin123, open http://localhost:8080/admin
+  Before: each user object included a "password" field (the hash)
+  After:  each user object has only id, username, role — no "password" field
+
+Result: RESOLVED — password hashes are no longer exposed by the admin endpoint.
+
+Screenshot(s):
+  fixed.png — the /admin JSON showing no password field (only id, username, role)
