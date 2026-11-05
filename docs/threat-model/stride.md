@@ -35,8 +35,11 @@ disclosure, Denial of service, Elevation of privilege.
 | CI runner → released image/artifacts | **T**ampering / **R**epudiation | Without scanning/signing, a tampered build or dependency can ship unnoticed | CI, supply chain | SAST+SCA+secret gates failing on HIGH/CRITICAL; Cosign-signed artifact; pinned actions |
 
 ## Top-5 risk ranking (likelihood × impact)
-<!-- Person 1 assembles this once all rows are in. -->
 
 | Rank | Risk | Likelihood | Impact | Rating | Why |
 |---|---|---|---|---|---|
-| _TODO_ | | | | | |
+| 1 | AUTH-01 — forged administrator session (signing secret in source, `none` accepted, no expiry) | High | Critical | **Critical** | The signing key is public in the repo, so anyone can mint an admin token and take over administration. |
+| 2 | INJ-03 — server-side template injection in search | Medium | Critical | **High** | A stored Jinja expression is evaluated on the server, escalating to code execution in the app process. |
+| 3 | INJ-04 — OS command injection in export | Medium | Critical | **High** | An authenticated user runs arbitrary shell commands (as root in the container). |
+| 4 | AUTH-02 / INJ-01 — SQL injection (login & search) | High | High | **High** | Unauthenticated login bypass and cross-user note access via injected SQL. |
+| 5 | AC-01 / AC-03 — broken access control (role self-assignment & IDOR) | High | High | **High** | Anyone can register as admin; any authenticated user can read any note by ID. |
