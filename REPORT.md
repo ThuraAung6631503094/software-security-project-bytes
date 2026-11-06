@@ -11,6 +11,7 @@
 | Members (name + ID) | Thura Aung (6631503094) · Pyae Shunn Le Maung (6631503084) · Nang Yu Yu Khay (6631503078) |
 | Target application | NoteVault (course starter app) |
 | Repository URL | https://github.com/ThuraAung6631503094/software-security-project-bytes |
+| Video URL | https://drive.google.com/drive/folders/19dseKPoRew2BsUetORD8JoJAo8ULehvp?usp=sharing |
 | Baseline | tag `vulnerable-baseline` |
 | Date | 2026-11-05 |
 
